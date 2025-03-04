@@ -1,6 +1,7 @@
 from groq import Groq
 from dotenv import load_dotenv  # Import the load_dotenv function
 from sqlalchemy import create_engine, exc as sql_exc
+from sqlalchemy import text
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
 import faiss
@@ -19,12 +20,18 @@ EMBEDDINGS_FILE = "embeddings.npy"
 FAISS_INDEX_FILE = "faiss_index.index"
 
 #-------------------------------------------------------
-r = redis.Redis(
-    host = "localhost",
-    port = 6379,
-    db = 0,
-    decode_responses = True
-)
+# Redis connection with error handling
+try:
+    r = redis.Redis(
+        host="localhost",
+        port=6379,
+        db=0,
+        decode_responses=True
+    )
+    r.ping()  # Test connection
+except redis.ConnectionError:
+    print("Error: Could not connect to Redis. Make sure Redis is running!")
+    exit(1)
 
 ttl = 3600
 #-----------------------------------------------------------
@@ -39,7 +46,7 @@ def load_database_data():
     try:
         engine = create_engine(DATABASE_URL)
         with engine.connect() as conn:
-            results = conn.execute("select question, answers from qa_trivia").fetchall()
+            results = conn.execute(text("""select question, answers from qa_trivia""")).fetchall()
 
         return [f"Question: {q}\nAnswer: {a}" for q, a in results]
 
@@ -119,7 +126,7 @@ def main():
             try:
                 query = input("\nHow can I help you today😊? (Type 'exit' to quit): ")
 
-                if query.lower == 'exit':
+                if query.lower().strip() == 'exit':
                     print('Goodbye')
                     break
 
@@ -127,7 +134,8 @@ def main():
                 cached = r.get(query)
                 if cached:
                     print("Serving from cache...")
-                    return {**cached, "cached": True}
+                    print(cached)
+                    continue
                 #--------------------
 
                 prompt = handel_query(query, encoder, index, chunks)
@@ -146,7 +154,7 @@ def main():
                 print("\nResponse:")
                 answer = response.choices[0].message.content
                 #--------------------
-                r.setex(query, answer)
+                r.setex(query, ttl, answer)  # Add TTL parameter
                 #--------------------
                 print(answer)
 
