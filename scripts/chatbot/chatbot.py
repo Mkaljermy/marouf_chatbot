@@ -6,6 +6,7 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from sentence_transformers import SentenceTransformer
 import faiss
 import os
+import sys
 import numpy as np
 from textwrap import dedent
 from typing import List, Tuple
@@ -23,8 +24,7 @@ EMBEDDINGS_FILE = "embeddings.npy"
 FAISS_INDEX_FILE = "faiss_index.index"
 
 
-load_dotenv() # initialize .env file
-api_key = os.getenv('GROQ_API_KEY')
+load_dotenv() 
 
 
 def load_database_data():
@@ -81,7 +81,7 @@ def create_messages(query, context):
 
     Rules:
     1. If the user greets you (e.g., "hi", "hello"), respond warmly and ask how you can help them.
-    2. If the user asks about your name or identity, say: "My name is Marouf, I'm a chatbot programmed by Mohammad Al-Jermy, and I'm here to help you!"
+    2. If the user asks about your name or identity lik " who are you" ..., say: "My name is Marouf, I'm a chatbot programmed by Mohammad Al-Jermy, and I'm here to help you!"
     3. If the user asks a question related to the provided context, answer it based ONLY on the context. If the context doesn't contain relevant information, say: "I don't have enough information to answer this question."
     4. If the user asks about your creator, say: "My creator is Mohammad Al-Jermy, he is a data scientist."
     5. If the user asks a question unrelated to the context (e.g., translation, calculation), politely guide them to ask about something related to the data trivia. For example: "I'm here to help with trivia questions! Feel free to ask me anything about the data."
@@ -99,21 +99,49 @@ def create_messages(query, context):
     ]
 
 
+def get_response(query, encoder, index, chunks):
+    
+    api_key = os.getenv('GROQ_API_KEY')
+    r = redis_object()
+    client = Groq(api_key=api_key)
 
-def handel_query_and_get_messages(query, encoder, index, chunks):
-    """process user query"""
-    # encode query
+    #------------------------------------
+    cache_key = get_cache_key(query)
+    cached_response = r.get(cache_key)
+    if cached_response:
+        print("Serving from cache...")
+        return cached_response
+    #------------------------------------
+
     query_embedding = encoder.encode(query)
     faiss.normalize_L2(query_embedding.reshape(1, -1))
-    #faiss search
+
     _, indices = index.search(query_embedding.reshape(1, -1), FAISS_K)
     context = [chunks[i] for i in indices[0]]
 
     messages = create_messages(query, context)
 
-    return messages
-    
+    try:
+        response = client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=messages,
+            temperature=0.3,
+        )
+        answer = response.choices[0].message.content
+    except Exception as e:
+        print(f"Error generating response: {e}")
+        return None
 
+    #------------------------------------
+    ttl = 3600  # 1 hour
+    r.setex(cache_key, ttl, answer)
+    #------------------------------------
+
+    print("\nResponse:")
+    return answer
+
+    
+    
 
 def main():
     
@@ -122,47 +150,17 @@ def main():
         chunks = split_text(text_data)
         embeddings = generate_embeddings(chunks)
         index = build_or_load_faiss_index(embeddings)
-
         encoder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
-
-        r = redis_object()
-            
-        client = Groq(api_key=api_key)
 
         while True:
             try:
                 query = input("\nHow can I help you today😊? (Type 'exit' to quit): ").strip()
-
                 if query.lower().strip() == 'exit':
                     print('Goodbye')
                     break
 
-                #-------------------
-                cache_key = get_cache_key(query)
-                cached = r.get(cache_key)
-                if cached:
-                    print("Serving from cache...")
-                    print(cached)
-                    continue
-                #--------------------
+                print(get_response(query, encoder, index, chunks))
 
-                messages = handel_query_and_get_messages(query, encoder, index, chunks)
-
-                response = client.chat.completions.create(
-                model=MODEL_NAME,
-                messages=messages,
-                temperature=0.3,
-                 #stream=True,
-                 )
-
-                print("\nResponse:")
-                answer = response.choices[0].message.content
-                #--------------------
-                ttl = 3600
-                r.setex(cache_key, ttl, answer)
-                #--------------------
-                print(answer)
-            
             except Exception as e:
                 print(f"\n Error processing request: {str(e)}")
     except Exception as e:
