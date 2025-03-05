@@ -13,6 +13,7 @@ import redis
 import re
 from tenacity import retry, stop_after_attempt, wait_exponential
 from hashlib import md5
+from caching import redis_object, get_cache_key
 
 DATABASE_URL = "postgresql://postgres:mdkn@localhost:5432/chatbot"
 CHUNK_SIZE = 512
@@ -20,25 +21,6 @@ FAISS_K = 3
 MODEL_NAME = "deepseek-r1-distill-llama-70b"
 EMBEDDINGS_FILE = "embeddings.npy"
 FAISS_INDEX_FILE = "faiss_index.index"
-
-#-------------------------------------------------------
-# Redis connection with error handling
-REDIS_HOST = os.getenv("REDIS_HOST")
-REDIS_PORT = 6379
-try:
-    r = redis.Redis(
-        host=REDIS_HOST,
-        port=REDIS_PORT,
-        db=0,
-        decode_responses=True
-    )
-    r.ping()  # Test connection
-except redis.ConnectionError:
-    print("Error: Could not connect to Redis. Make sure Redis is running!")
-    exit(1)
-
-ttl = 3600
-#-----------------------------------------------------------
 
 
 load_dotenv() # initialize .env file
@@ -92,13 +74,6 @@ def build_or_load_faiss_index(embeddings):
     return index
 
 
-
-def get_cache_key(query):
-    """Generate a normalized cache key."""
-    clean = re.sub(r'\s+', ' ', query).lower().strip()
-    return md5(clean.encode()).hexdigest()
-
-
 def create_messages(query, context):
     """Create structured messages for the LLM."""
     system_msg = dedent("""\
@@ -149,6 +124,8 @@ def main():
         index = build_or_load_faiss_index(embeddings)
 
         encoder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+
+        r = redis_object()
             
         client = Groq(api_key=api_key)
 
@@ -181,7 +158,8 @@ def main():
                 print("\nResponse:")
                 answer = response.choices[0].message.content
                 #--------------------
-                r.setex(cache_key, ttl, answer)  # Add TTL parameter
+                ttl = 3600
+                r.setex(cache_key, ttl, answer)
                 #--------------------
                 print(answer)
             
