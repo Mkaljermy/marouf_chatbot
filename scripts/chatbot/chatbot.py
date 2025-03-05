@@ -1,5 +1,5 @@
 from groq import Groq
-from dotenv import load_dotenv  # Import the load_dotenv function
+from dotenv import load_dotenv  
 from sqlalchemy import create_engine, exc as sql_exc
 from sqlalchemy import text
 from langchain.text_splitter import RecursiveCharacterTextSplitter
@@ -10,7 +10,9 @@ import numpy as np
 from textwrap import dedent
 from typing import List, Tuple
 import redis
-#from redis_cache import RedisCache
+import re
+from tenacity import retry, stop_after_attempt, wait_exponential
+from hashlib import md5
 
 DATABASE_URL = "postgresql://postgres:mdkn@localhost:5432/chatbot"
 CHUNK_SIZE = 512
@@ -21,10 +23,12 @@ FAISS_INDEX_FILE = "faiss_index.index"
 
 #-------------------------------------------------------
 # Redis connection with error handling
+REDIS_HOST = os.getenv("REDIS_HOST")
+REDIS_PORT = 6379
 try:
     r = redis.Redis(
-        host="localhost",
-        port=6379,
+        host=REDIS_HOST,
+        port=REDIS_PORT,
         db=0,
         decode_responses=True
     )
@@ -57,7 +61,11 @@ def load_database_data():
 
 def split_text(text_data):
     """"split text into chunks"""
-    splitter = RecursiveCharacterTextSplitter(chunk_size = CHUNK_SIZE)
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size = CHUNK_SIZE,
+        chunk_overlap=100,
+        separators=["\nQuestion: ", "\nAnswer: ", "\n"]
+        )
     return splitter.split_text('\n'.join(text_data))
 
 
@@ -77,28 +85,24 @@ def build_or_load_faiss_index(embeddings):
     if os.path.exists(FAISS_INDEX_FILE):
         return faiss.read_index(FAISS_INDEX_FILE)
     
-    index = faiss.IndexFlatL2(embeddings.shape[1])
+    faiss.normalize_L2(embeddings)
+    index = faiss.IndexFlatIP(embeddings.shape[1])
     index.add(embeddings)
     faiss.write_index(index, FAISS_INDEX_FILE)
     return index
 
 
-def handel_query(query, encoder, index, chunks):
-    """process user query"""
-    # encode query
-    query_embedding = encoder.encode(query)
-    #faiss search
-    _, indices = index.search(query_embedding.reshape(1, -1), FAISS_K)
-    context = [chunks[i] for i in indices[0]]
 
-    return dedent(f"""
-    You are a friendly and helpful assistant named Marouf. Your purpose is to answer questions based on the provided context and engage in friendly conversation.
+def get_cache_key(query):
+    """Generate a normalized cache key."""
+    clean = re.sub(r'\s+', ' ', query).lower().strip()
+    return md5(clean.encode()).hexdigest()
 
-    Context:
-    {' '.join(context)}
 
-    Question:
-    {query}
+def create_messages(query, context):
+    """Create structured messages for the LLM."""
+    system_msg = dedent("""\
+    You are Marouf, a friendly and helpful assistant. Your purpose is to answer questions based on the provided context and engage in friendly conversation.
 
     Rules:
     1. If the user greets you (e.g., "hi", "hello"), respond warmly and ask how you can help them.
@@ -107,7 +111,33 @@ def handel_query(query, encoder, index, chunks):
     4. If the user asks about your creator, say: "My creator is Mohammad Al-Jermy, he is a data scientist."
     5. If the user asks a question unrelated to the context (e.g., translation, calculation), politely guide them to ask about something related to the data trivia. For example: "I'm here to help with trivia questions! Feel free to ask me anything about the data."
     6. Always maintain a friendly and approachable tone.
-""")
+    """)
+    
+    user_msg = dedent(f"""\
+    Context: {' '.join(context)}
+    Question: {query}
+    """)
+    
+    return [
+        {"role": "system", "content": system_msg},
+        {"role": "user", "content": user_msg}
+    ]
+
+
+
+def handel_query_and_get_messages(query, encoder, index, chunks):
+    """process user query"""
+    # encode query
+    query_embedding = encoder.encode(query)
+    faiss.normalize_L2(query_embedding.reshape(1, -1))
+    #faiss search
+    _, indices = index.search(query_embedding.reshape(1, -1), FAISS_K)
+    context = [chunks[i] for i in indices[0]]
+
+    messages = create_messages(query, context)
+
+    return messages
+    
 
 
 def main():
@@ -124,46 +154,36 @@ def main():
 
         while True:
             try:
-                query = input("\nHow can I help you today😊? (Type 'exit' to quit): ")
+                query = input("\nHow can I help you today😊? (Type 'exit' to quit): ").strip()
 
                 if query.lower().strip() == 'exit':
                     print('Goodbye')
                     break
 
                 #-------------------
-                cached = r.get(query)
+                cache_key = get_cache_key(query)
+                cached = r.get(cache_key)
                 if cached:
                     print("Serving from cache...")
                     print(cached)
                     continue
                 #--------------------
 
-                prompt = handel_query(query, encoder, index, chunks)
+                messages = handel_query_and_get_messages(query, encoder, index, chunks)
 
-                # For streaming responses
                 response = client.chat.completions.create(
-                    model=MODEL_NAME,
-                    messages=[
-                        {"role": "system", "content": "You are a helpful AI assistant."},
-                        {"role": "user", "content": prompt}
-                    ],
-                    temperature=0,
-                    #stream=True,
-                )
+                model=MODEL_NAME,
+                messages=messages,
+                temperature=0.3,
+                 #stream=True,
+                 )
 
                 print("\nResponse:")
                 answer = response.choices[0].message.content
                 #--------------------
-                r.setex(query, ttl, answer)  # Add TTL parameter
+                r.setex(cache_key, ttl, answer)  # Add TTL parameter
                 #--------------------
                 print(answer)
-
-                '''
-                # Properly handle streaming response
-                for chunk in response:
-                    if chunk.choices[0].delta.content:
-                        print(chunk.choices[0].delta.content, end='', flush=True)
-                print() '''
             
             except Exception as e:
                 print(f"\n Error processing request: {str(e)}")
@@ -173,22 +193,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
-
-# # Extract the final answer and remove the <think> section
-# full_response = response.choices[0].message.content
-
-# # Remove the <think> section if it exists
-# if "<think>" in full_response:
-#     # Split the response into <think> and final answer
-#     think_start = full_response.find("<think>")
-#     think_end = full_response.find("</think>") + len("</think>")
-#     final_answer = full_response[think_end:].strip()  # Get everything after </think>
-# else:
-#     final_answer = full_response  # If no <think> section, use the full response
-
-# # Print the final answer
-# print("Response:")
-# print(final_answer)
-# print("\n")
