@@ -33,7 +33,7 @@ r = redis_object()
 @app.post("/chat")
 async def get_reply(query:query):
     try:
-        user_query = query.query.lower().strip()
+        user_query = query.query.strip()
         if not user_query:
             raise HTTPException(status_code=400, detail="Query cannot be empty")
 
