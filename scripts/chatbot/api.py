@@ -24,16 +24,27 @@ embeddings = generate_embeddings(chunks)
 index = build_or_load_faiss_index(embeddings)
 encoder = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
+r = redis_object()
+
+
 @app.post("/chat")
-async def get_resply(query:query):
+async def get_reply(query:query):
     try:
-        user_query = query.query.strip()
+        user_query = query.query.lower().strip()
         if not user_query:
             raise HTTPException(status_code=400, detail="Query cannot be empty")
 
         if user_query.lower() == "exit":
             print("Goodbye")
             sys.exit() 
+
+        #------------------------------------
+        cache_key = get_cache_key(user_query)
+        cached_response = r.get(cache_key)
+        if cached_response:
+            print("Serving from cache...")
+            return {"response": cached_response}
+        #------------------------------------
 
         response = get_response(user_query, encoder, index, chunks)
 
