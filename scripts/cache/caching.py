@@ -1,9 +1,11 @@
 import redis
 import re
+from dotenv import load_dotenv
 from tenacity import retry, stop_after_attempt, wait_exponential
 from hashlib import md5
 import os
 
+load_dotenv('D:/marouf_chatbot/.env')
 
 REDIS_HOST = os.getenv("REDIS_HOST")
 REDIS_PORT = 6379

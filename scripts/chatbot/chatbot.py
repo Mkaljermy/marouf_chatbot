@@ -29,7 +29,7 @@ FAISS_INDEX_FILE = "faiss_index.index"
 r = redis_object()
 
 
-load_dotenv() 
+load_dotenv('D:/marouf_chatbot/scripts/.env') 
 
 
 def load_database_data():

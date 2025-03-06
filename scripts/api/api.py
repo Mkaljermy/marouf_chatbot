@@ -3,11 +3,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sentence_transformers import SentenceTransformer
 import sys
+from dotenv import load_dotenv
 
 sys.path.insert(2,'D:/marouf_chatbot/scripts')
 from cache.caching import redis_object, get_cache_key
 from chatbot.chatbot import *
 
+
+load_dotenv('D:/marouf_chatbot/.env')
 
 class query(BaseModel):
     query:str
