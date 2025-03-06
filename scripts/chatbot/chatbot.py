@@ -14,7 +14,11 @@ import redis
 import re
 from tenacity import retry, stop_after_attempt, wait_exponential
 from hashlib import md5
+
+sys.path.insert(1, 'D:/marouf_chatbot/scripts/cache')
+
 from caching import redis_object, get_cache_key
+
 
 DATABASE_URL = "postgresql://postgres:mdkn@localhost:5432/chatbot"
 CHUNK_SIZE = 512
