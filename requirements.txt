@@ -9,3 +9,5 @@ sentence_transformers
 faiss-cpu
 streamlit
 redis
+fastapi
+uvicorn
