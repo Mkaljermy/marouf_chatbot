@@ -22,6 +22,7 @@ FAISS_K = 3
 MODEL_NAME = "deepseek-r1-distill-llama-70b"
 EMBEDDINGS_FILE = "embeddings.npy"
 FAISS_INDEX_FILE = "faiss_index.index"
+r = redis_object()
 
 
 load_dotenv() 
@@ -102,16 +103,7 @@ def create_messages(query, context):
 def get_response(query, encoder, index, chunks):
     
     api_key = os.getenv('GROQ_API_KEY')
-    r = redis_object()
     client = Groq(api_key=api_key)
-
-    #------------------------------------
-    cache_key = get_cache_key(query)
-    cached_response = r.get(cache_key)
-    if cached_response:
-        print("Serving from cache...")
-        return cached_response
-    #------------------------------------
 
     query_embedding = encoder.encode(query)
     faiss.normalize_L2(query_embedding.reshape(1, -1))
@@ -133,6 +125,7 @@ def get_response(query, encoder, index, chunks):
         return None
 
     #------------------------------------
+    cache_key = get_cache_key(query)
     ttl = 3600  # 1 hour
     r.setex(cache_key, ttl, answer)
     #------------------------------------
@@ -158,6 +151,15 @@ def main():
                 if query.lower().strip() == 'exit':
                     print('Goodbye')
                     break
+
+                #------------------------------------
+                cache_key = get_cache_key(query)
+                cached_response = r.get(cache_key)
+                if cached_response:
+                    print("Serving from cache...")
+                    print(cached_response)
+                    continue
+                #------------------------------------
 
                 print(get_response(query, encoder, index, chunks))
 
