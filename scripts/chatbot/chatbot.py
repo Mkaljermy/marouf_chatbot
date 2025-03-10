@@ -9,10 +9,8 @@ import os
 import sys
 import numpy as np
 from textwrap import dedent
-from typing import List, Tuple
 import redis
 import re
-from tenacity import retry, stop_after_attempt, wait_exponential
 from hashlib import md5
 
 sys.path.insert(1, 'D:/marouf_chatbot/scripts/cache')
@@ -24,8 +22,8 @@ DATABASE_URL = "postgresql://postgres:mdkn@localhost:5432/chatbot"
 CHUNK_SIZE = 512
 FAISS_K = 3
 MODEL_NAME = "deepseek-r1-distill-llama-70b"
-EMBEDDINGS_FILE = "embeddings.npy"
-FAISS_INDEX_FILE = "faiss_index.index"
+EMBEDDINGS_FILE = "/app/scripts/API/embeddings.npy" #updated
+FAISS_INDEX_FILE = "/app/scripts/API/faiss_index.index" #updated
 r = redis_object()
 
 

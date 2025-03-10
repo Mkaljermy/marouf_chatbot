@@ -1,3 +1,6 @@
 *.log
 *.env
 venv
+Dockerfile
+chatbot_dump.sql
+docker-compose.yml

@@ -40,10 +40,6 @@ async def get_reply(query:query):
         if not user_query:
             raise HTTPException(status_code=400, detail="Query cannot be empty")
 
-        if user_query.lower() == "exit":
-            print("Goodbye")
-            sys.exit() 
-
         #------------------------------------
         cache_key = get_cache_key(user_query)
         cached_response = r.get(cache_key)
