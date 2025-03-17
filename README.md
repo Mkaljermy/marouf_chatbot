@@ -1,7 +1,9 @@
-# QA Trivia Chatbot
+# Marouf Chatbot
 
 ## Overview
 This project is a **QA Trivia Chatbot** that answers user questions based on a structured dataset of trivia questions and answers. The chatbot uses a **Retrieval-Augmented Generation (RAG)** model, powered by **Groq API** and **DeepSeek**, to provide accurate and context-aware responses. The backend is built with **FastAPI**, the frontend with **Streamlit**, and the data is stored in **PostgreSQL** with **Redis** for caching.
+
+![App](app.png)
 
 ---
 
