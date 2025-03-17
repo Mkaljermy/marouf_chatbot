@@ -4,9 +4,14 @@ from dotenv import load_dotenv
 from hashlib import md5
 import os
 
-load_dotenv('D:/marouf_chatbot/.env')
+load_dotenv('D:/marouf_chatbot/.env') # load from local project root
 
-REDIS_HOST = os.getenv("REDIS_HOST")
+# load_dotenv('/app/.env')  # Load from docker project root
+
+# REDIS_HOST = os.getenv("REDIS_HOST", "redis")  # Use docker service name
+
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost") # for localhost redis
+
 REDIS_PORT = 6379
 
 def redis_object():

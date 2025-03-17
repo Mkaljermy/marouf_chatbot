@@ -5,12 +5,15 @@ from sentence_transformers import SentenceTransformer
 import sys
 from dotenv import load_dotenv
 
-sys.path.insert(2,'D:/marouf_chatbot/scripts')
+sys.path.insert(2,'D:/marouf_chatbot/scripts') # for local development
+load_dotenv('D:/marouf_chatbot/.env') # load from local project root
+
+
+# load_dotenv('/app/.env') # for docker container env
 from cache.caching import redis_object, get_cache_key
 from chatbot.chatbot import *
 
 
-load_dotenv('D:/marouf_chatbot/.env')
 
 class query(BaseModel):
     query:str
@@ -50,6 +53,9 @@ async def get_reply(query:query):
 
         response = get_response(user_query, encoder, index, chunks)
 
-        return {"response": response}
+        # the response after without thinking
+        final_response = re.sub(r'<think>.*?</think>\s*', '', response, flags=re.DOTALL).strip()
+
+        return {"response": final_response}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"An error occurred: {str(e)}")

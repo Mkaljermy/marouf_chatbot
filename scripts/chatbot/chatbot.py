@@ -13,21 +13,30 @@ import redis
 import re
 from hashlib import md5
 
-sys.path.insert(1, 'D:/marouf_chatbot/scripts/cache')
+sys.path.insert(1, 'D:/marouf_chatbot/scripts/cache') # for local development
 
-from caching import redis_object, get_cache_key
+from cache.caching import redis_object, get_cache_key
+
+# load_dotenv('/app/.env')  # docker relative path
+
+load_dotenv('D:/marouf_chatbot/.env') # load from local project root
 
 
-DATABASE_URL = "postgresql://postgres:mdkn@localhost:5432/chatbot"
+# DATABASE_URL = f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@postgres:5432/{os.getenv('POSTGRES_DB')}" # docker
+# EMBEDDINGS_FILE = "/app/scripts/api/embeddings.npy"  # Absolute path in Docker
+# FAISS_INDEX_FILE = "/app/scripts/api/faiss_index.index" # Absolute path in Docker
+
+DATABASE_URL = f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@localhost:5432/{os.getenv('POSTGRES_DB')}" # local
+EMBEDDINGS_FILE = "D:/marouf_chatbot/scripts/api/embeddings.npy"  # local
+FAISS_INDEX_FILE = "D:/marouf_chatbot/scripts/api/faiss_index.index"  # local
+
 CHUNK_SIZE = 512
 FAISS_K = 3
 MODEL_NAME = "deepseek-r1-distill-llama-70b"
-EMBEDDINGS_FILE = "/app/scripts/API/embeddings.npy" #updated
-FAISS_INDEX_FILE = "/app/scripts/API/faiss_index.index" #updated
+
+
 r = redis_object()
 
-
-load_dotenv('D:/marouf_chatbot/scripts/.env') 
 
 
 def load_database_data():
