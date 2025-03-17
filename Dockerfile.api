@@ -1,0 +1,36 @@
+# Stage 1: Builder (for compiling dependencies)
+FROM python:3.9-slim as builder
+
+WORKDIR /app
+
+COPY requirements.txt .
+RUN pip install --user --no-cache-dir -r requirements.txt
+
+# Stage 2: Final image
+FROM python:3.9-slim
+
+WORKDIR /app
+
+# Copy installed dependencies from builder
+COPY --from=builder /root/.local /root/.local
+
+# Copy project files
+COPY .env .  
+COPY ./scripts ./scripts
+
+# Copy FAISS files explicitly
+COPY ./scripts/api/embeddings.npy ./scripts/api/embeddings.npy
+COPY ./scripts/api/faiss_index.index ./scripts/api/faiss_index.index
+
+# Ensure scripts are executable (if needed)
+RUN chmod +x ./scripts/api/api.py
+
+# Add .local/bin to PATH
+ENV PATH="/root/.local/bin:$PATH"
+ENV PYTHONPATH="/app"
+
+# Expose FastAPI port
+EXPOSE 8000
+
+# Run FastAPI
+CMD ["uvicorn", "scripts.api.api:app", "--host", "0.0.0.0", "--port", "8000"]
