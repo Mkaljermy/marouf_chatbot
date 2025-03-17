@@ -40,7 +40,7 @@ marouf_chatbot/
 
 ---
 
-Prerequisites
+## Prerequisites
 Docker and Docker Compose installed.
 
 Groq API Key: Sign up at Groq and get your API key.
@@ -49,13 +49,15 @@ Python 3.9 or higher.
 
 ---
 
-Setup
-1. Clone the Repository
+## Setup
+### 1. Clone the Repository:
+```bash
 git clone https://github.com/your-username/marouf_chatbot.git
 cd marouf_chatbot
 
-2. Set Up Environment Variables
+### 2. Set Up Environment Variables:
 Create a .env file in the root directory:
+```bash
 # PostgreSQL
 POSTGRES_USER=marouf
 POSTGRES_PASSWORD=your_secure_password
@@ -67,7 +69,8 @@ REDIS_HOST=redis
 # Groq
 GROQ_API_KEY=your_groq_api_key_here
 
-3. Build and Run with Docker
+### 3. Build and Run with Docker:
+```bash
 docker-compose up --build
 
 4. Access the Services
@@ -77,7 +80,7 @@ Streamlit UI: http://localhost:8501
 
 ---
 
-Technologies Used
+## Technologies Used
 Backend: FastAPI, PostgreSQL, Redis
 
 Frontend: Streamlit
