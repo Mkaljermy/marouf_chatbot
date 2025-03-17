@@ -38,6 +38,7 @@ marouf_chatbot/
     └── frontend/
         └── index.py
 
+```
 ---
 
 ## Prerequisites
@@ -55,6 +56,8 @@ Python 3.9 or higher.
 git clone https://github.com/your-username/marouf_chatbot.git
 cd marouf_chatbot
 
+```
+
 ### 2. Set Up Environment Variables:
 Create a .env file in the root directory:
 ```bash
@@ -68,6 +71,7 @@ REDIS_HOST=redis
 
 # Groq
 GROQ_API_KEY=your_groq_api_key_here
+```
 
 ### 3. Build and Run with Docker:
 ```bash
@@ -77,7 +81,7 @@ docker-compose up --build
 FastAPI Docs: http://localhost:8000/docs
 
 Streamlit UI: http://localhost:8501
-
+```
 ---
 
 ## Technologies Used
