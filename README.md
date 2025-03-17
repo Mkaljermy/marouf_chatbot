@@ -38,7 +38,7 @@ marouf_chatbot/
     └── frontend/
         └── index.py
 
------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 Prerequisites
 Docker and Docker Compose installed.
@@ -47,7 +47,7 @@ Groq API Key: Sign up at Groq and get your API key.
 
 Python 3.9 or higher.
 
------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 Setup
 1. Clone the Repository
@@ -75,7 +75,7 @@ FastAPI Docs: http://localhost:8000/docs
 
 Streamlit UI: http://localhost:8501
 
------------------------------------------------------------------------------------------------------------------------------------------
+---
 
 Technologies Used
 Backend: FastAPI, PostgreSQL, Redis
